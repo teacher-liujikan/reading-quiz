@@ -447,7 +447,7 @@
 
   // ⚠️ 部署前必填：填入你自己 Cloudflare Worker 的網址（見 README.md 的部署步驟）
   // 例如："https://reading-quiz-backend.your-name.workers.dev"
-  const API_BASE = "https://reading-quiz-backend.tina12345920.workers.dev";
+  const API_BASE = "https://YOUR-WORKER-SUBDOMAIN.workers.dev";
 
   const CATEGORIES = [
     {key:'direct_extraction', label:'直接提取', desc:'答案明確寫在文中，找出即可', color:'var(--ink)'},
@@ -899,12 +899,15 @@ ${categoryPromptList()}
             headers:{ "Content-Type":"application/json" },
             body: JSON.stringify({ images, instructions })
           });
-          if(response.ok){
+          try{
             resultJson = await response.json();
-            if(resultJson.ok) break;
+          }catch(parseErr){
+            resultJson = null;
           }
-          if((response.status >= 500 || !response.ok) && attempt < maxRetries){
-            $('#procMsg').textContent = `伺服器暫時忙碌，自動重試中...（第 ${attempt+1} 次）`;
+          if(response.ok && resultJson && resultJson.ok) break;
+          if(attempt < maxRetries){
+            const shortMsg = (resultJson && resultJson.error) ? resultJson.error.slice(0,40) : ('狀態碼 ' + response.status);
+            $('#procMsg').textContent = `伺服器忙碌或發生錯誤（${shortMsg}），自動重試中...（第 ${attempt+1} 次）`;
             await new Promise(r => setTimeout(r, 1500 * (attempt+1)));
             continue;
           }
@@ -921,7 +924,7 @@ ${categoryPromptList()}
 
       if(!resultJson || !resultJson.ok){
         const msg = (resultJson && resultJson.error) || `伺服器回應錯誤（狀態碼 ${response ? response.status : '未知'}）`;
-        throw new Error(msg + '（請確認 index.html 裡的 API_BASE 是否已填入正確的 Worker 網址）');
+        throw new Error(msg);
       }
       const parsed = resultJson.quiz;
       if(!parsed || !parsed.questions || !parsed.questions.length){
