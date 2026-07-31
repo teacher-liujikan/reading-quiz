@@ -134,6 +134,20 @@
 
   /* format radio cards */
   .fmt-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-top:6px;}
+  .fields-check-row{display:flex; gap:10px; flex-wrap:wrap;}
+  .check-pill{
+    display:inline-flex; align-items:center; gap:6px; border:1.5px solid var(--line); background:var(--paper);
+    padding:8px 14px; font-size:14px; cursor:pointer; user-select:none;
+  }
+  .check-pill input{width:15px; height:15px; accent-color:var(--red); cursor:pointer;}
+  .check-pill:has(input:checked){border-color:var(--red); background:var(--red-soft);}
+
+  .doc-version-toggle{display:flex; gap:8px; margin-bottom:16px;}
+  .dv-btn{
+    flex:1; font-family:var(--mono); font-size:12px; font-weight:600; padding:10px; cursor:pointer;
+    border:1.5px solid var(--line); background:#fff; color:var(--ink-soft);
+  }
+  .dv-btn.active{border-color:var(--ink); background:var(--ink); color:#fff;}
   .fmt-card{border:1.5px solid var(--line); padding:14px; cursor:pointer; text-align:center; transition:.15s;}
   .fmt-card:hover{border-color:var(--ink);}
   .fmt-card.selected{border-color:var(--red); background:var(--red-soft);}
@@ -285,6 +299,26 @@
   .answer-reveal{display:none; font-size:13px; color:var(--sage); margin-top:8px; padding-top:8px; border-top:1px dashed var(--line);}
   .answer-reveal.show{display:block;}
 
+  .gacha-wrap{position:relative; margin-left:auto; display:inline-flex; align-items:center;}
+  .gacha-btn{
+    width:30px; height:30px; border:1.5px solid var(--gold); border-radius:50%;
+    background:var(--gold-soft); color:var(--gold); display:flex; align-items:center; justify-content:center;
+    cursor:pointer; padding:0; transition:.15s;
+  }
+  .gacha-btn:hover:not(:disabled){background:var(--gold); color:#fff; transform:rotate(-8deg) scale(1.06);}
+  .gacha-btn:disabled{opacity:.4; cursor:not-allowed;}
+  .gacha-btn.spinning{animation:gacha-spin .6s linear infinite;}
+  @keyframes gacha-spin{ from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
+  .gacha-tip{
+    position:absolute; bottom:calc(100% + 6px); right:0; white-space:nowrap;
+    font-family:var(--mono); font-size:10px; background:var(--ink); color:#fff;
+    padding:3px 8px; border-radius:3px; opacity:0; pointer-events:none; transition:.12s;
+  }
+  .gacha-tip::after{
+    content:''; position:absolute; top:100%; right:10px; border:4px solid transparent; border-top-color:var(--ink);
+  }
+  .gacha-wrap:hover .gacha-tip{opacity:1;}
+
   footer.foot{margin-top:34px; text-align:center; font-family:var(--mono); font-size:11px; color:var(--ink-soft);}
 
   @media (max-width:600px){
@@ -320,11 +354,10 @@
     <div class="howto-title">👋 第一次使用？先看這裡</div>
     <ol class="howto-list">
       <li>依序完成下方 <b>STEP1～STEP3</b>：選測驗對象、設定各題型題數、選想要的輸出格式</li>
-      <li><b>STEP4</b> 用手機相機拍下文章，或直接上傳圖片，較長的文章可分多張照片</li>
+      <li><b>STEP4</b> 用手機相機拍下文章，或直接上傳圖片，較長的文章可分多張照片（建議 1～4 張以內，張數太多容易辨識失敗或逾時）</li>
       <li>按下「<b>生成測驗</b>」，AI 會自動讀圖辨識並依設定出題，約 10–30 秒</li>
       <li>完成後可切換「互動測驗網頁 / Word / PDF」三種方式使用或下載</li>
     </ol>
-    <p class="howto-note">✅ 這是自架版本，使用者不需要登入 Claude 帳號，AI 命題會透過你自己部署的後端進行。</p>
   </div>
 
   <main id="setupForm">
@@ -356,7 +389,7 @@
     <!-- STEP 2 -->
     <div class="card" data-tag="STEP 2 · 題型與題數（PIRLS 四層次）">
       <h2 class="section-title">選擇每種層次要出幾題</h2>
-      <p class="hint">依照 PIRLS 閱讀理解四層次分配題數，設為 0 代表不出該類型的題目。</p>
+      <p class="hint">依照 PIRLS 閱讀理解四層次分配題數，設為 0 代表不出該類型的題目（每種層次最多 6 題）。</p>
       <div class="cat-grid" id="catGrid"></div>
       <div class="total-line">總題數：<b id="totalCount">0</b> 題</div>
     </div>
@@ -381,6 +414,14 @@
           <div class="fmt-name">PDF／列印</div>
           <div class="fmt-sub">版面完整，適合印卷</div>
         </div>
+      </div>
+
+      <label class="field-label" style="margin-top:18px;">學生作答時要填寫的基本資料</label>
+      <p class="hint" style="margin-bottom:10px;">會出現在互動測驗網頁、Word 與 PDF 卷頭上</p>
+      <div class="fields-check-row">
+        <label class="check-pill"><input type="checkbox" id="fieldClass" checked> 班級</label>
+        <label class="check-pill"><input type="checkbox" id="fieldSeat" checked> 座號</label>
+        <label class="check-pill"><input type="checkbox" id="fieldName" checked> 姓名</label>
       </div>
     </div>
 
@@ -470,10 +511,11 @@
   const urlParams = new URLSearchParams(window.location.search);
   const quizIdParam = urlParams.get('quiz');
   const isResultsView = urlParams.get('view') === 'results';
+  const resultsTokenParam = urlParams.get('token') || '';
 
   if(quizIdParam && isResultsView){
     bootAltMode('老師・作答結果');
-    renderResultsDashboard(quizIdParam);
+    renderResultsDashboard(quizIdParam, resultsTokenParam);
   } else if(quizIdParam){
     bootAltMode('學生作答模式');
     renderStudentQuiz(quizIdParam);
@@ -511,7 +553,8 @@
     }
 
     const quiz = quizRec.quiz;
-    const st = { name:'', answers:{}, submitted:false, nameError:false };
+    const fields = Object.assign({ className:true, seat:true, name:true }, quizRec.fields || {});
+    const st = { className:'', seat:'', name:'', answers:{}, submitted:false, infoError:false };
 
     function renderQuestions(graded){
       return quiz.questions.map((q, idx)=>{
@@ -537,20 +580,26 @@
 
     function render(){
       if(!st.submitted){
+        const infoFieldsHtml = [
+          fields.className ? `<div><label class="field-label">班級</label><input type="text" id="stClass" placeholder="例如：三年二班" value="${escapeHtml(st.className)}"></div>` : '',
+          fields.seat ? `<div><label class="field-label">座號</label><input type="text" id="stSeat" placeholder="例如：12" value="${escapeHtml(st.seat)}"></div>` : '',
+          fields.name ? `<div><label class="field-label">姓名</label><input type="text" id="stName" placeholder="請輸入姓名" value="${escapeHtml(st.name)}"></div>` : ''
+        ].filter(Boolean).join('');
         root.innerHTML = `
           <div class="article-box"><b>${escapeHtml(quiz.articleTitle||'閱讀測驗')}</b> — ${escapeHtml(quiz.articleSummary||'')}</div>
-          <div class="card" data-tag="作答人">
-            <label class="field-label">姓名／座號</label>
-            <input type="text" id="studentName" placeholder="請輸入姓名或座號，方便老師辨識" value="${escapeHtml(st.name)}">
-            <p class="field-err" id="nameErr" style="display:${st.nameError ? 'block':'none'};">⚠ 請先輸入姓名或座號，方便老師對照結果</p>
-          </div>
+          ${infoFieldsHtml ? `<div class="card" data-tag="作答人資料">
+            <div class="row">${infoFieldsHtml}</div>
+            <p class="field-err" id="infoErr" style="display:${st.infoError ? 'block':'none'};">⚠ 請先填寫上面的基本資料，方便老師對照結果</p>
+          </div>` : ''}
           ${renderQuestions(false)}
           <div class="sticky-bar">
             <span class="cnt">已作答 ${Object.keys(st.answers).length} / ${quiz.questions.length} 題</span>
             <button class="btn red" id="submitBtn">交卷</button>
           </div>
         `;
-        $('#studentName').addEventListener('input', e => st.name = e.target.value);
+        if(fields.className) $('#stClass').addEventListener('input', e => st.className = e.target.value);
+        if(fields.seat) $('#stSeat').addEventListener('input', e => st.seat = e.target.value);
+        if(fields.name) $('#stName').addEventListener('input', e => st.name = e.target.value);
         $all('.opt').forEach(opt=>{
           opt.addEventListener('click', ()=>{
             st.answers[parseInt(opt.dataset.qid,10)] = parseInt(opt.dataset.oi,10);
@@ -571,13 +620,13 @@
     }
 
     async function submit(){
-      if(!st.name.trim()){
-        st.nameError = true;
+      const missing = (fields.className && !st.className.trim()) || (fields.seat && !st.seat.trim()) || (fields.name && !st.name.trim());
+      if(missing){
+        st.infoError = true;
         render();
-        $('#studentName') && $('#studentName').focus();
         return;
       }
-      st.nameError = false;
+      st.infoError = false;
       const total = quiz.questions.length;
       let correct = 0;
       quiz.questions.forEach(q=>{ if(st.answers[q.id]===q.answerIndex) correct++; });
@@ -587,7 +636,7 @@
         await fetch(API_BASE + '/api/response', {
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ quizId, name: st.name.trim(), answers: st.answers, score: correct, total })
+          body: JSON.stringify({ quizId, name: st.name.trim(), className: st.className.trim(), seat: st.seat.trim(), answers: st.answers, score: correct, total })
         });
       }catch(e){ /* 儲存失敗也讓學生看到自己的分數 */ }
       st.submitted = true;
@@ -598,7 +647,7 @@
   }
 
   // ================= 老師・作答結果儀表板 =================
-  async function renderResultsDashboard(quizId){
+  async function renderResultsDashboard(quizId, resultsToken){
     const root = $('#modeRoot');
     root.innerHTML = `<div class="card" data-tag="讀取中"><p class="hint">正在載入作答結果...</p></div>`;
 
@@ -614,8 +663,12 @@
         return;
       }
       try{
-        const res2 = await fetch(API_BASE + '/api/responses?quiz=' + encodeURIComponent(quizId));
+        const res2 = await fetch(API_BASE + '/api/responses?quiz=' + encodeURIComponent(quizId) + '&token=' + encodeURIComponent(resultsToken || ''));
         const j2 = await res2.json();
+        if(res2.status === 403){
+          root.innerHTML = `<div class="card" data-tag="沒有權限"><p class="hint">⚠ 通行碼不正確，這個連結沒有權限查看作答結果。請回到老師端「產生測驗連結」的頁面，用上面完整的「查看作答結果」連結（含通行碼），不要自己拼湊網址。</p></div>`;
+          return;
+        }
         if(res2.ok && j2.ok) responses = j2.responses || [];
       }catch(e){}
 
@@ -640,9 +693,17 @@
           <h2 class="section-title">作答名單</h2>
           ${responses.length === 0 ? '<p class="hint">目前還沒有人送出作答，等學生開始作答後按下方「重新整理」即可看到。</p>' : `
           <table class="result-table">
-            <thead><tr><th>姓名／座號</th><th>得分</th><th>送出時間</th></tr></thead>
+            <thead><tr>
+              ${quizRec.fields && quizRec.fields.className ? '<th>班級</th>' : ''}
+              ${quizRec.fields && quizRec.fields.seat ? '<th>座號</th>' : ''}
+              <th>姓名</th><th>得分</th><th>送出時間</th>
+            </tr></thead>
             <tbody>
-              ${responses.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td>${r.score} / ${r.total}</td><td>${new Date(r.submittedAt).toLocaleString('zh-TW')}</td></tr>`).join('')}
+              ${responses.map(r=>`<tr>
+                ${quizRec.fields && quizRec.fields.className ? `<td>${escapeHtml(r.className||'')}</td>` : ''}
+                ${quizRec.fields && quizRec.fields.seat ? `<td>${escapeHtml(r.seat||'')}</td>` : ''}
+                <td>${escapeHtml(r.name||'')}</td><td>${r.score} / ${r.total}</td><td>${new Date(r.submittedAt).toLocaleString('zh-TW')}</td>
+              </tr>`).join('')}
             </tbody>
           </table>`}
         </div>
@@ -677,7 +738,12 @@
     answers: {}, // qId -> optionIndex
     graded: false,
     activeTab: 'web',
-    share: null // {id, shareUrl, resultsUrl}
+    share: null, // {id, shareUrl, resultsUrl}
+    rerollsUsed: 0,
+    rerollsLimit: 5,
+    rerollingId: null, // 目前正在換題中的題目 id（避免重複點擊）
+    studentFields: { className:true, seat:true, name:true },
+    docVersion: 'teacher' // 'teacher' | 'student' — Word/PDF 預覽目前顯示哪個版本
   };
 
   const howtoCloseBtn = $('#howtoCloseBtn');
@@ -686,6 +752,10 @@
       $('#howtoCard').classList.add('hidden');
     });
   }
+
+  $('#fieldClass').addEventListener('change', e => state.studentFields.className = e.target.checked);
+  $('#fieldSeat').addEventListener('change', e => state.studentFields.seat = e.target.checked);
+  $('#fieldName').addEventListener('change', e => state.studentFields.name = e.target.checked);
 
   // ---------- setup: audience ----------
   function buildCatGrid(){
@@ -699,7 +769,7 @@
         <div class="cat-desc">${cat.desc}</div>
         <div class="stepper-input">
           <button type="button" data-act="dec" data-cat="${cat.key}">−</button>
-          <input type="number" min="0" max="15" value="${state.counts[cat.key]}" data-cat="${cat.key}" class="cat-input">
+          <input type="number" min="0" max="6" value="${state.counts[cat.key]}" data-cat="${cat.key}" class="cat-input">
           <button type="button" data-act="inc" data-cat="${cat.key}">+</button>
         </div>
       `;
@@ -710,7 +780,7 @@
       if(!btn) return;
       const key = btn.dataset.cat;
       const delta = btn.dataset.act === 'inc' ? 1 : -1;
-      state.counts[key] = Math.max(0, Math.min(15, state.counts[key] + delta));
+      state.counts[key] = Math.max(0, Math.min(6, state.counts[key] + delta));
       grid.querySelector(`input[data-cat="${key}"]`).value = state.counts[key];
       updateTotal();
     });
@@ -719,7 +789,7 @@
       if(!inp) return;
       let v = parseInt(inp.value,10);
       if(isNaN(v) || v<0) v = 0;
-      if(v>15) v = 15;
+      if(v>6) v = 6;
       state.counts[inp.dataset.cat] = v;
       updateTotal();
     });
@@ -934,6 +1004,8 @@ ${categoryPromptList()}
       state.answers = {};
       state.graded = false;
       state.share = null;
+      state.rerollsUsed = 0;
+      state.rerollingId = null;
       proc.classList.remove('show');
       $('#generateBtn').disabled = false;
       renderResult();
@@ -986,6 +1058,8 @@ ${categoryPromptList()}
       state.answers = {};
       state.graded = false;
       state.share = null;
+      state.rerollsUsed = 0;
+      state.rerollingId = null;
       renderThumbs();
       updateTotal();
       $('#resultSection').classList.remove('show');
@@ -1050,18 +1124,22 @@ ${categoryPromptList()}
       body.innerHTML = renderWebQuizHtml();
       bindWebQuizEvents();
     } else if(state.activeTab === 'word'){
-      body.innerHTML = renderDocPreviewHtml() + `
+      const includeAnswers = state.docVersion === 'teacher';
+      body.innerHTML = renderDocVersionToggle() + renderDocPreviewHtml(includeAnswers) + `
         <div class="btn-row no-print">
           <div></div>
-          <button class="btn red" id="downloadWordBtn">⬇ 下載 Word (.doc)</button>
+          <button class="btn red" id="downloadWordBtn">⬇ 下載 Word（${includeAnswers?'教師版':'學生版'}）</button>
         </div>`;
-      $('#downloadWordBtn').addEventListener('click', downloadWord);
+      bindDocVersionToggle();
+      $('#downloadWordBtn').addEventListener('click', ()=> downloadWord(includeAnswers));
     } else if(state.activeTab === 'pdf'){
-      body.innerHTML = renderDocPreviewHtml(true) + `
+      const includeAnswers = state.docVersion === 'teacher';
+      body.innerHTML = renderDocVersionToggle() + renderDocPreviewHtml(includeAnswers) + `
         <div class="btn-row no-print">
           <div></div>
-          <button class="btn red" id="printBtn">🖨 開啟列印／另存 PDF</button>
+          <button class="btn red" id="printBtn">🖨 開啟列印／另存 PDF（${includeAnswers?'教師版':'學生版'}）</button>
         </div>`;
+      bindDocVersionToggle();
       $('#printBtn').addEventListener('click', ()=> window.print());
     }
   }
@@ -1079,13 +1157,29 @@ ${categoryPromptList()}
   }
 
   function renderWebQuizHtml(){
-    let html = `<p class="hint">📋 老師預覽：確認每一題內容與解答無誤後，產生連結分享給學生，讓他們用自己的裝置作答。</p>`;
+    const remaining = state.rerollsLimit - state.rerollsUsed;
+    let html = `<p class="hint">📋 老師預覽：確認每一題內容與解答無誤後，產生連結分享給學生，讓他們用自己的裝置作答。點題目旁邊的扭蛋機圖示可以換一題（本次測驗還可換 <b>${remaining}</b> / ${state.rerollsLimit} 次）。</p>`;
     state.quiz.questions.forEach((q, idx)=>{
       const cat = catInfo(q.category);
+      const isRerolling = state.rerollingId === q.id;
+      const rerollDisabled = isRerolling || remaining <= 0;
       html += `<div class="q-card">
         <div class="q-head">
           <span class="q-num">Q${idx+1}</span>
           <span class="q-tag" style="border:1.5px solid ${cat.color}; color:${cat.color};">${cat.label}</span>
+          <span class="gacha-wrap">
+            <button type="button" class="gacha-btn ${isRerolling?'spinning':''}" data-qid="${q.id}" data-cat="${escapeHtml(q.category)}" ${rerollDisabled?'disabled':''}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+                <circle cx="12" cy="9" r="7" fill="currentColor" opacity="0.15"/>
+                <path d="M5 9a7 7 0 0 1 14 0" stroke="currentColor" stroke-width="1.6" fill="none"/>
+                <path d="M4 9h16l-1.3 3.5A2 2 0 0 1 16.8 14H7.2a2 2 0 0 1-1.9-1.5L4 9Z" fill="currentColor" opacity="0.85"/>
+                <rect x="8" y="16" width="8" height="5" rx="1.5" fill="currentColor"/>
+                <circle cx="9.5" cy="7.5" r="1.3" fill="#fff"/>
+                <circle cx="13.5" cy="8.5" r="1" fill="#fff"/>
+              </svg>
+            </button>
+            <span class="gacha-tip">${remaining <= 0 ? '已達本次上限' : (isRerolling ? '換題中...' : '換一題')}</span>
+          </span>
         </div>
         <div class="q-text">${escapeHtml(q.question)}</div>
         <div class="opts" data-qid="${q.id}">
@@ -1096,6 +1190,7 @@ ${categoryPromptList()}
         </div>
         <button type="button" class="answer-toggle" data-qid="${q.id}">🔑 顯示解答</button>
         <div class="answer-reveal" id="reveal-${q.id}">✅ 正確答案：${String.fromCharCode(65+q.answerIndex)}　—　${escapeHtml(q.explanation||'')}</div>
+        <p class="field-err" id="rerollErr-${q.id}" style="display:none;"></p>
       </div>`;
     });
 
@@ -1159,7 +1254,7 @@ ${categoryPromptList()}
       const res = await fetch(API_BASE + '/api/quiz', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ id, quiz: state.quiz, audience: state.audience })
+        body: JSON.stringify({ id, quiz: state.quiz, audience: state.audience, fields: state.studentFields })
       });
       const j = await res.json();
       if(!res.ok || !j.ok) throw new Error(j.error || '儲存測驗失敗，請確認後端網址與 KV 設定是否正確。');
@@ -1167,7 +1262,7 @@ ${categoryPromptList()}
       state.share = {
         id,
         shareUrl: base + '?quiz=' + id,
-        resultsUrl: base + '?quiz=' + id + '&view=results'
+        resultsUrl: base + '?quiz=' + id + '&view=results&token=' + encodeURIComponent(j.resultsToken || '')
       };
       renderTabBody();
     }catch(err){
@@ -1181,6 +1276,67 @@ ${categoryPromptList()}
     }
   }
 
+  async function handleReroll(qid, category){
+    if(state.rerollsUsed >= state.rerollsLimit) return;
+    if(state.rerollingId) return; // 已經有一題在換了，避免同時點好幾個
+    const idx = state.quiz.questions.findIndex(q => String(q.id) === String(qid));
+    if(idx === -1) return;
+    const oldQuestion = state.quiz.questions[idx];
+    const cat = catInfo(category);
+
+    state.rerollingId = qid;
+    renderTabBody();
+
+    const instructions = `你是一位專業的國語文閱讀理解命題老師。這是同一份測驗裡的其中一題，老師想要換一題不一樣的。
+
+文章標題：${state.quiz.articleTitle || ''}
+文章摘要：${state.quiz.articleSummary || ''}
+測驗對象：${state.audience}
+這一題的層次：${cat.label}（category="${category}"）— 定義：${cat.desc}
+原本這一題（請換成完全不同的題目，不要只是換句話說）：${oldQuestion.question}
+
+請只出這 1 題，單選題、4 個選項，難度符合上述對象。請「只」輸出以下 JSON 格式，不要有 Markdown 標記、不要有其他文字：
+{
+  "questions": [
+    {
+      "id": 1,
+      "category": "${category}",
+      "question": "string",
+      "options": ["string","string","string","string"],
+      "answerIndex": 0,
+      "explanation": "string"
+    }
+  ]
+}`;
+
+    try{
+      const res = await fetch(API_BASE + '/api/generate', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ images: [], instructions })
+      });
+      const j = await res.json();
+      if(!res.ok || !j.ok || !j.quiz || !j.quiz.questions || !j.quiz.questions[0]){
+        throw new Error((j && j.error) || '換題失敗，請稍後再試');
+      }
+      const newQ = j.quiz.questions[0];
+      newQ.id = oldQuestion.id; // 保留原本的 id，避免影響其他地方的對應
+      newQ.category = category; // 強制維持原本的層次分類
+      state.quiz.questions[idx] = newQ;
+      state.rerollsUsed++;
+      state.share = null; // 題目變了，舊的分享連結內容已經跟畫面對不上，需要重新產生
+    }catch(err){
+      const errEl = $('#rerollErr-'+qid);
+      if(errEl){
+        errEl.style.display = 'block';
+        errEl.textContent = '⚠ ' + (err.message || String(err));
+      }
+    }finally{
+      state.rerollingId = null;
+      renderTabBody();
+    }
+  }
+
   function bindWebQuizEvents(){
     $all('.answer-toggle').forEach(btn=>{
       btn.addEventListener('click', ()=>{
@@ -1189,6 +1345,12 @@ ${categoryPromptList()}
         if(!reveal) return;
         const showing = reveal.classList.toggle('show');
         btn.textContent = showing ? '🔒 隱藏解答' : '🔑 顯示解答';
+      });
+    });
+
+    $all('.gacha-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        handleReroll(btn.dataset.qid, btn.dataset.cat);
       });
     });
 
@@ -1225,43 +1387,74 @@ ${categoryPromptList()}
   }
 
   // ----- Word / PDF style document preview -----
-  function renderDocPreviewHtml(withAnswerKeyInline){
-    let html = `<div class="card" data-tag="測驗卷預覽">
+  function buildInfoHeaderText(sep){
+    const parts = [];
+    if(state.studentFields.className) parts.push('班級：＿＿＿＿');
+    if(state.studentFields.seat) parts.push('座號：＿＿＿＿');
+    if(state.studentFields.name) parts.push('姓名：＿＿＿＿＿＿');
+    return parts.join(sep || '　　');
+  }
+
+  function renderDocVersionToggle(){
+    return `<div class="doc-version-toggle no-print">
+      <button type="button" class="dv-btn ${state.docVersion==='teacher'?'active':''}" data-v="teacher">🔑 教師版（含解答）</button>
+      <button type="button" class="dv-btn ${state.docVersion==='student'?'active':''}" data-v="student">📝 學生版（純題目）</button>
+    </div>`;
+  }
+
+  function bindDocVersionToggle(){
+    $all('.dv-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        state.docVersion = btn.dataset.v;
+        renderTabBody();
+      });
+    });
+  }
+
+  function renderDocPreviewHtml(includeAnswers){
+    const infoLine = buildInfoHeaderText('　');
+    let html = `<div class="card" data-tag="測驗卷預覽 · ${includeAnswers?'教師版':'學生版'}">
       <h2 class="section-title" style="text-align:center;">${escapeHtml(state.quiz.articleTitle || '閱讀測驗')}</h2>
-      <p class="hint" style="text-align:center;">對象：${escapeHtml(state.audience)} ｜ 姓名：＿＿＿＿＿＿　座號：＿＿＿＿</p>`;
+      <p class="hint" style="text-align:center;">對象：${escapeHtml(state.audience)}${infoLine ? '　｜　' + infoLine : ''}</p>`;
     state.quiz.questions.forEach((q, idx)=>{
       const cat = catInfo(q.category);
       html += `<div style="margin:16px 0; padding-bottom:12px; border-bottom:1px dashed var(--line);">
         <div style="font-family:var(--mono); font-size:11px; color:${cat.color}; margin-bottom:4px;">【${cat.label}】</div>
-        <div style="font-family:var(--serif); font-weight:700; font-size:15px;">${idx+1}. ${escapeHtml(q.question)}</div>
+        <div style="font-family:var(--serif); font-weight:700; font-size:15px;">(　　)　${idx+1}. ${escapeHtml(q.question)}</div>
         <div style="margin-top:6px; font-size:14px; line-height:2;">
           ${q.options.map((opt,oi)=>`(${String.fromCharCode(65+oi)}) ${escapeHtml(opt)}`).join('　')}
         </div>
       </div>`;
     });
-    html += `<div style="margin-top:24px; padding-top:14px; border-top:2px solid var(--ink);">
-      <div style="font-family:var(--serif); font-weight:700; margin-bottom:8px;">🔑 解答與解析</div>`;
-    state.quiz.questions.forEach((q, idx)=>{
-      html += `<div style="font-size:13px; margin-bottom:6px;"><b>${idx+1}. 答案：${String.fromCharCode(65+q.answerIndex)}</b> — ${escapeHtml(q.explanation||'')}</div>`;
-    });
-    html += `</div></div>`;
+    if(includeAnswers){
+      html += `<div style="margin-top:24px; padding-top:14px; border-top:2px solid var(--ink);">
+        <div style="font-family:var(--serif); font-weight:700; margin-bottom:8px;">🔑 解答與解析</div>`;
+      state.quiz.questions.forEach((q, idx)=>{
+        html += `<div style="font-size:13px; margin-bottom:6px;"><b>${idx+1}. 答案：${String.fromCharCode(65+q.answerIndex)}</b> — ${escapeHtml(q.explanation||'')}</div>`;
+      });
+      html += `</div>`;
+    }
+    html += `</div>`;
     return html;
   }
 
-  function downloadWord(){
+  function downloadWord(includeAnswers){
     const title = escapeHtml(state.quiz.articleTitle || '閱讀測驗');
+    const infoLine = buildInfoHeaderText('　　');
     let body = `<h1 style="font-size:20pt;text-align:center;">${title}</h1>
-      <p style="text-align:center;">對象：${escapeHtml(state.audience)}　　姓名：＿＿＿＿＿＿　　座號：＿＿＿＿</p><hr/>`;
+      <p style="text-align:center;">對象：${escapeHtml(state.audience)}${infoLine ? '　　' + infoLine : ''}</p><hr/>`;
     state.quiz.questions.forEach((q, idx)=>{
       const cat = catInfo(q.category);
       body += `<p><b>【${cat.label}】</b></p>
-        <p><b>${idx+1}. ${escapeHtml(q.question)}</b></p>
+        <p><b>(　　)　${idx+1}. ${escapeHtml(q.question)}</b></p>
         <p>${q.options.map((opt,oi)=>`(${String.fromCharCode(65+oi)}) ${escapeHtml(opt)}`).join('　　')}</p><br/>`;
     });
-    body += `<hr/><h2>解答與解析</h2>`;
-    state.quiz.questions.forEach((q, idx)=>{
-      body += `<p>${idx+1}. 答案：<b>${String.fromCharCode(65+q.answerIndex)}</b> — ${escapeHtml(q.explanation||'')}</p>`;
-    });
+    if(includeAnswers){
+      body += `<hr/><h2>解答與解析</h2>`;
+      state.quiz.questions.forEach((q, idx)=>{
+        body += `<p>${idx+1}. 答案：<b>${String.fromCharCode(65+q.answerIndex)}</b> — ${escapeHtml(q.explanation||'')}</p>`;
+      });
+    }
     const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
       <head><meta charset="utf-8"><title>${title}</title></head>
       <body style="font-family:'PMingLiU','Microsoft JhengHei',serif; font-size:12pt;">${body}</body></html>`;
@@ -1269,7 +1462,7 @@ ${categoryPromptList()}
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${(state.quiz.articleTitle||'閱讀測驗')}.doc`;
+    a.download = `${(state.quiz.articleTitle||'閱讀測驗')}-${includeAnswers?'教師版':'學生版'}.doc`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
