@@ -47,15 +47,15 @@
     border-bottom:2px solid var(--ink);
     margin-bottom:28px;
   }
-  .brand{display:flex; align-items:baseline; gap:10px;}
+  .brand{display:flex; align-items:center; gap:10px;}
   .brand .mark{
     font-family:var(--mono); font-weight:600; font-size:12px;
     border:1.5px solid var(--red); color:var(--red);
     padding:2px 6px; letter-spacing:.06em; transform:rotate(-2deg);
   }
   .brand .mark-icon{
-    font-size:20px; line-height:1; padding:6px 8px; transform:rotate(-4deg);
-    border:none;
+    display:inline-flex; align-items:center; justify-content:center;
+    padding:4px; transform:rotate(-4deg); border:none;
   }
   .brand h1{font-family:var(--serif); font-weight:900; font-size:22px; margin:0; letter-spacing:.02em;}
   .brand p{font-family:var(--mono); font-size:11px; color:var(--ink-soft); margin:2px 0 0; letter-spacing:.04em;}
@@ -340,7 +340,16 @@
 
   <header class="top">
     <div class="brand">
-      <span class="mark mark-icon">📷</span>
+      <span class="mark mark-icon" aria-hidden="true">
+        <svg viewBox="0 0 30 30" width="26" height="26">
+          <rect x="9" y="6" width="7" height="3.5" rx="1" fill="var(--ink)"/>
+          <rect x="2" y="9" width="22" height="15" rx="3" fill="none" stroke="var(--ink)" stroke-width="1.8"/>
+          <circle cx="13" cy="16.5" r="5" fill="none" stroke="var(--ink)" stroke-width="1.8"/>
+          <circle cx="13" cy="16.5" r="2" fill="var(--ink)"/>
+          <circle cx="24" cy="8" r="6.5" fill="var(--red)"/>
+          <text x="24" y="11" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="9" fill="#fff">?</text>
+        </svg>
+      </span>
       <div>
         <h1>閱讀一把照</h1>
         <p>設定完成後拍照上傳，一鍵生成測驗</p>
@@ -527,7 +536,16 @@
     document.querySelector('.wrap').innerHTML = `
       <header class="top">
         <div class="brand">
-          <span class="mark mark-icon">📷</span>
+          <span class="mark mark-icon" aria-hidden="true">
+            <svg viewBox="0 0 30 30" width="26" height="26">
+              <rect x="9" y="6" width="7" height="3.5" rx="1" fill="var(--ink)"/>
+              <rect x="2" y="9" width="22" height="15" rx="3" fill="none" stroke="var(--ink)" stroke-width="1.8"/>
+              <circle cx="13" cy="16.5" r="5" fill="none" stroke="var(--ink)" stroke-width="1.8"/>
+              <circle cx="13" cy="16.5" r="2" fill="var(--ink)"/>
+              <circle cx="24" cy="8" r="6.5" fill="var(--red)"/>
+              <text x="24" y="11" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="9" fill="#fff">?</text>
+            </svg>
+          </span>
           <div><h1>閱讀一把照</h1><p>${escapeHtml(subtitle)}</p></div>
         </div>
       </header>
@@ -1413,7 +1431,7 @@ ${categoryPromptList()}
 
   function renderDocPreviewHtml(includeAnswers){
     const infoLine = buildInfoHeaderText('　');
-    let html = `<div class="card" data-tag="測驗卷預覽 · ${includeAnswers?'教師版':'學生版'}">
+    let html = `<div class="card" data-tag="測驗卷 · ${includeAnswers?'教師版':'學生版'}">
       <h2 class="section-title" style="text-align:center;">${escapeHtml(state.quiz.articleTitle || '閱讀測驗')}</h2>
       <p class="hint" style="text-align:center;">對象：${escapeHtml(state.audience)}${infoLine ? '　｜　' + infoLine : ''}</p>`;
     state.quiz.questions.forEach((q, idx)=>{
