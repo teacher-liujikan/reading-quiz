@@ -961,6 +961,9 @@
             resultJson = null;
           }
           if(response.ok && resultJson && resultJson.ok) break;
+          if(resultJson && resultJson.notArticle){
+            break; // AI 判斷這不是文章，這是明確的內容判斷，不用重試
+          }
           if(attempt < maxRetries){
             const shortMsg = (resultJson && resultJson.error) ? resultJson.error.slice(0,40) : ('狀態碼 ' + response.status);
             $('#procMsg').textContent = `伺服器忙碌或發生錯誤（${shortMsg}），自動重試中...（第 ${attempt+1} 次）`;
@@ -980,7 +983,9 @@
 
       if(!resultJson || !resultJson.ok){
         const msg = (resultJson && resultJson.error) || `伺服器回應錯誤（狀態碼 ${response ? response.status : '未知'}）`;
-        throw new Error(msg);
+        const e = new Error(msg);
+        if(resultJson && resultJson.notArticle) e.notArticle = true;
+        throw e;
       }
       const parsed = resultJson.quiz;
       if(!parsed || !parsed.questions || !parsed.questions.length){
@@ -999,7 +1004,11 @@
       $('#resultSection').scrollIntoView({behavior:'smooth', block:'start'});
     }catch(err){
       errBox.style.display = 'block';
-      errBox.textContent = '⚠ 產生測驗時發生問題：' + (err.message || err) + '（可能是圖片不夠清楚、網路問題，或內容無法辨識，請重試或換一張較清晰的照片）';
+      if(err && err.notArticle){
+        errBox.textContent = '🚫 這張照片可能不是文章：' + (err.message || '') + '。請重新拍攝或上傳內容清楚的文章照片（例如課文、報導、故事等）。';
+      } else {
+        errBox.textContent = '⚠ 產生測驗時發生問題：' + (err.message || err) + '（可能是圖片不夠清楚、網路問題，或內容無法辨識，請重試或換一張較清晰的照片）';
+      }
       $('#generateBtn').disabled = false;
     }
   }
