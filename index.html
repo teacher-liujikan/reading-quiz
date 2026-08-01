@@ -934,10 +934,6 @@
   $('#generateBtn').addEventListener('click', generateQuiz);
 
   // ---------- generate via Claude API ----------
-  function categoryPromptList(){
-    return CATEGORIES.map(c => `- ${c.label}（category="${c.key}"）：${state.counts[c.key]} 題 — 定義：${c.desc}`).join('\n');
-  }
-
   async function generateQuiz(){
     const proc = $('#procInline');
     const errBox = $('#errBox');
@@ -946,34 +942,6 @@
     $('#generateBtn').disabled = true;
     $('#procMsg').textContent = 'AI 正在閱讀文章、依四層次命題...';
     proc.scrollIntoView({behavior:'smooth', block:'center'});
-
-    const total = Object.values(state.counts).reduce((a,b)=>a+b,0);
-    const instructions = `你是一位專業的國語文閱讀理解命題老師。使用者會提供 1 張以上文章照片（依序為第1頁、第2頁...）。
-
-請完成以下任務：
-1. 先辨識並理解圖片中的完整文章內容（不需要在輸出中逐字重現全文）。
-2. 針對「${state.audience}」的程度，依照 PIRLS 閱讀理解四層次命題，各層次題數如下：
-${categoryPromptList()}
-（共 ${total} 題，若某層次題數為 0 則完全不要出該類型的題目）
-3. 每題為單選題，提供 4 個選項（只有 1 個正確答案），選項長度與難度需符合上述對象的程度。
-4. 每題附上簡短解析（說明為什麼正確答案是對的，適合老師講解使用）。
-5. 為文章下一個簡短標題，並寫一段 60–100 字的文章摘要（給老師快速確認辨識是否正確用，不需逐字照抄文章）。
-
-請「只」輸出以下 JSON 格式，不要有任何 Markdown 標記、不要有 JSON 以外的文字說明：
-{
-  "articleTitle": "string",
-  "articleSummary": "string",
-  "questions": [
-    {
-      "id": 1,
-      "category": "direct_extraction | direct_inference | interpretation_integration | comparison_evaluation",
-      "question": "string",
-      "options": ["string","string","string","string"],
-      "answerIndex": 0,
-      "explanation": "string"
-    }
-  ]
-}`;
 
     const images = state.images.map(img => ({ mediaType: img.mediaType, base64: img.base64 }));
 
@@ -985,7 +953,7 @@ ${categoryPromptList()}
           response = await fetch(API_BASE + '/api/generate', {
             method:"POST",
             headers:{ "Content-Type":"application/json" },
-            body: JSON.stringify({ images, instructions })
+            body: JSON.stringify({ images, mode:'full', audience: state.audience, counts: state.counts })
           });
           try{
             resultJson = await response.json();
@@ -1268,14 +1236,14 @@ ${categoryPromptList()}
       if(!API_BASE || API_BASE.indexOf('YOUR-WORKER-SUBDOMAIN') !== -1){
         throw new Error('尚未設定 API_BASE，請先依照 README.md 部署後端並填入正確的 Worker 網址。');
       }
-      const id = genId();
       const res = await fetch(API_BASE + '/api/quiz', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ id, quiz: state.quiz, audience: state.audience, fields: state.studentFields })
+        body: JSON.stringify({ quiz: state.quiz, audience: state.audience, fields: state.studentFields })
       });
       const j = await res.json();
-      if(!res.ok || !j.ok) throw new Error(j.error || '儲存測驗失敗，請確認後端網址與 KV 設定是否正確。');
+      if(!res.ok || !j.ok || !j.id) throw new Error(j.error || '儲存測驗失敗，請確認後端網址與 KV 設定是否正確。');
+      const id = j.id;
       const base = location.origin + location.pathname;
       state.share = {
         id,
@@ -1300,38 +1268,23 @@ ${categoryPromptList()}
     const idx = state.quiz.questions.findIndex(q => String(q.id) === String(qid));
     if(idx === -1) return;
     const oldQuestion = state.quiz.questions[idx];
-    const cat = catInfo(category);
 
     state.rerollingId = qid;
     renderTabBody();
-
-    const instructions = `你是一位專業的國語文閱讀理解命題老師。這是同一份測驗裡的其中一題，老師想要換一題不一樣的。
-
-文章標題：${state.quiz.articleTitle || ''}
-文章摘要：${state.quiz.articleSummary || ''}
-測驗對象：${state.audience}
-這一題的層次：${cat.label}（category="${category}"）— 定義：${cat.desc}
-原本這一題（請換成完全不同的題目，不要只是換句話說）：${oldQuestion.question}
-
-請只出這 1 題，單選題、4 個選項，難度符合上述對象。請「只」輸出以下 JSON 格式，不要有 Markdown 標記、不要有其他文字：
-{
-  "questions": [
-    {
-      "id": 1,
-      "category": "${category}",
-      "question": "string",
-      "options": ["string","string","string","string"],
-      "answerIndex": 0,
-      "explanation": "string"
-    }
-  ]
-}`;
 
     try{
       const res = await fetch(API_BASE + '/api/generate', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ images: [], instructions })
+        body: JSON.stringify({
+          images: [],
+          mode: 'reroll',
+          audience: state.audience,
+          category,
+          articleTitle: state.quiz.articleTitle || '',
+          articleSummary: state.quiz.articleSummary || '',
+          oldQuestion: oldQuestion.question
+        })
       });
       const j = await res.json();
       if(!res.ok || !j.ok || !j.quiz || !j.quiz.questions || !j.quiz.questions[0]){
