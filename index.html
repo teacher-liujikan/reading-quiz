@@ -43,9 +43,20 @@
 
   /* ---------- Header ---------- */
   header.top{
+    position:relative;
     padding:6px 4px 22px;
     border-bottom:2px solid var(--ink);
     margin-bottom:28px;
+  }
+  .header-watermark{
+    position:absolute; top:10px; right:6px;
+    font-family:var(--serif); font-style:italic; font-weight:700;
+    font-size:28px; line-height:1.15; color:var(--red); opacity:.55;
+    transform:rotate(-4deg); text-align:right; letter-spacing:.01em;
+    pointer-events:none; max-width:320px;
+  }
+  @media (max-width:700px){
+    .header-watermark{ display:none; }
   }
   .brand{display:flex; align-items:center; gap:10px;}
   .brand .mark{
@@ -58,6 +69,7 @@
     padding:4px; transform:rotate(-4deg); border:none;
   }
   .brand h1{font-family:var(--serif); font-weight:900; font-size:22px; margin:0; letter-spacing:.02em;}
+  .brand .tagline-en{font-family:var(--serif); font-style:italic; font-weight:600; font-size:12px; color:var(--red); margin:2px 0 0; letter-spacing:.01em;}
   .brand p{font-family:var(--mono); font-size:11px; color:var(--ink-soft); margin:2px 0 0; letter-spacing:.04em;}
   .flow{font-family:var(--mono); font-size:11px; color:var(--ink-soft); margin-top:12px; letter-spacing:.02em;}
   .flow b{color:var(--ink);}
@@ -355,6 +367,7 @@
         <p>設定完成後拍照上傳，一鍵生成測驗</p>
       </div>
     </div>
+    <span class="header-watermark" aria-hidden="true">Reading Quiz,<br>in a Snap.</span>
     <div class="flow"><b>STEP1</b> 測驗設定　→　<b>STEP2</b> 題型與題數　→　<b>STEP3</b> 輸出格式　→　<b>STEP4</b> 拍照上傳文章</div>
   </header>
 
@@ -548,6 +561,7 @@
           </span>
           <div><h1>閱讀一把照</h1><p>${escapeHtml(subtitle)}</p></div>
         </div>
+        <span class="header-watermark" aria-hidden="true">Reading Quiz,<br>in a Snap.</span>
       </header>
       <div id="modeRoot"></div>
       <footer class="foot no-print">閱讀一把照 · 產出內容建議由老師複核後再使用</footer>
