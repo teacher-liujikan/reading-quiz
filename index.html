@@ -244,11 +244,6 @@
     padding:9px 16px; border:1.5px solid var(--line); background:#fff; cursor:pointer;
   }
   .tab.active{border-color:var(--ink); background:var(--ink); color:#fff;}
-  .gform-btn{
-    margin-left:auto; border-style:dashed; color:var(--ink-soft); background:var(--paper);
-  }
-  .gform-btn:hover{border-color:var(--sage); color:var(--sage); border-style:solid;}
-  .gform-btn.copied{border-color:var(--sage); color:var(--sage); background:var(--sage-soft); border-style:solid;}
 
   .article-box{background:var(--paper); border:1.5px solid var(--line); padding:14px 16px; font-size:13px; color:var(--ink-soft); margin-bottom:20px;}
   .article-box b{color:var(--ink);}
@@ -301,7 +296,7 @@
   .qstat-text{flex:1; color:var(--ink);}
   .qstat-rate{font-family:var(--mono); font-weight:700; color:var(--ink); min-width:44px; text-align:right;}
   .avg-badge{display:inline-block; font-family:var(--mono); font-size:12px; background:var(--sage-soft); border:1px solid var(--sage); padding:4px 10px; margin-bottom:6px;}
-  .privacy-note{font-size:11px; color:var(--ink-soft); margin-top:14px; padding-top:10px; border-top:1px dashed var(--line);}
+  .privacy-note{font-size:13px; color:var(--ink-soft); margin-top:14px; padding-top:10px; border-top:1px dashed var(--line); line-height:1.6;}
   .howto-save-note{
     font-size:13px; color:var(--ink); background:var(--gold-soft); border:1.5px solid var(--gold);
     padding:12px 16px; margin-bottom:18px;
@@ -490,6 +485,7 @@
 
       <div class="thumbs" id="thumbs"></div>
       <p class="upload-warn" id="uploadWarn" style="display:none;"></p>
+      <p class="privacy-note">🔒 <b>照片流向說明：</b>照片只會傳送給 AI（Anthropic）用來辨識文章、生成題目，處理完就捨棄，<b>不會被儲存下來</b>，本工具開發者事後也無法看到你上傳過的照片內容。</p>
     </div>
 
     <!-- GENERATE -->
@@ -511,7 +507,6 @@
       <div class="tab" data-tab="web">🖥️ 互動測驗</div>
       <div class="tab" data-tab="word">📄 Word</div>
       <div class="tab" data-tab="pdf">🖨️ PDF／列印</div>
-      <button class="tab gform-btn" id="copyGFormBtn" type="button">📋 複製成 Google 表單格式文字</button>
     </div>
 
     <div class="article-box" id="articleBox"></div>
@@ -1130,48 +1125,6 @@
     });
   });
 
-  function buildGoogleFormsText(){
-    const q = state.quiz;
-    let out = `${q.articleTitle || '閱讀測驗'}\n測驗對象：${state.audience}\n${'='.repeat(30)}\n\n`;
-    q.questions.forEach((item, idx)=>{
-      const cat = catInfo(item.category);
-      out += `第${idx+1}題【${cat.label}】\n${item.question}\n`;
-      item.options.forEach((opt, oi)=>{
-        const mark = oi === item.answerIndex ? '*' : '';
-        out += `${mark}${String.fromCharCode(65+oi)}. ${opt}\n`;
-      });
-      out += `正確答案：${String.fromCharCode(65+item.answerIndex)}\n解析：${item.explanation || ''}\n\n`;
-    });
-    out += `※ 帶「*」的選項為正確答案。Google 表單需手動建立每一題（貼上題目與選項後，記得在表單設定裡開啟「測驗模式」並手動勾選正確答案）。`;
-    return out;
-  }
-
-  const copyGFormBtn = $('#copyGFormBtn');
-  if(copyGFormBtn){
-    copyGFormBtn.addEventListener('click', async ()=>{
-      if(!state.quiz) return;
-      const text = buildGoogleFormsText();
-      try{
-        await navigator.clipboard.writeText(text);
-      }catch(e){
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-      }
-      copyGFormBtn.textContent = '✅ 已複製，可貼到 Google 表單';
-      copyGFormBtn.classList.add('copied');
-      setTimeout(()=>{
-        copyGFormBtn.textContent = '📋 複製成 Google 表單格式文字';
-        copyGFormBtn.classList.remove('copied');
-      }, 2200);
-    });
-  }
-
   function renderTabBody(){
     const body = $('#resultBody');
     if(state.activeTab === 'web'){
@@ -1267,7 +1220,7 @@
           <a class="btn red" href="${escapeHtml(state.share.resultsUrl)}" target="_blank" rel="noopener">📊 查看作答結果</a>
           <button class="btn secondary" id="regenLinkBtn">↺ 產生新連結</button>
         </div>
-        <p class="privacy-note">⚠ 提醒：測驗內容與作答結果會存放在你自己的 Cloudflare KV 資料庫，任何拿到連結的人技術上都能讀取內容，請避免用於高機敏內容。<br>💾 每次測驗結束後，建議進「查看作答結果」把資料截圖或抄下來備份。</p>`;
+        <p class="privacy-note">⚠ 提醒：<b>這組連結不需要密碼</b>，只要有人拿到連結就能打開看到題目，請不要隨便公開分享，也別放進太隱私的內容。<br>💾 測驗結束後記得進「查看作答結果」把成績<b>截圖或抄下來</b>，資料 <span style="color:var(--red); font-weight:700;">30 天後會自動清除</span>。</p>`;
     } else {
       html += `
         <h3>🔗 分享給學生作答</h3>
