@@ -1259,6 +1259,7 @@
         <div class="link-row">
           <input type="text" id="shareUrlInput" readonly value="${escapeHtml(state.share.shareUrl)}">
           <button class="btn secondary" id="copyLinkBtn">複製連結</button>
+          <a class="btn secondary" href="${escapeHtml(state.share.shareUrl)}" target="_blank" rel="noopener">↗ 前往頁面</a>
         </div>
         <div class="qr-wrap" id="qrWrap"></div>
         <p class="hint" style="text-align:center;">學生用手機掃描 QR Code，或打開上面的連結即可開始作答</p>
