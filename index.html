@@ -357,11 +357,15 @@
   }
 
   @media print{
-    body{background:#fff !important;}
+    body{background:#fff !important; -webkit-print-color-adjust:exact; print-color-adjust:exact;}
     header.top, .tabs, .btn-row, .sticky-bar, #setupForm, .howto{display:none !important;}
     .no-print{display:none !important;}
     .card{border:none; padding:0;}
     .q-card{break-inside:avoid; border:1px solid #999;}
+    .result-table{break-inside:auto;}
+    .result-table tr{break-inside:avoid;}
+    .qstat-row{break-inside:avoid;}
+    .score-banner{break-inside:avoid;}
   }
 </style>
 </head>
@@ -818,10 +822,16 @@
         </div>
         <div class="btn-row no-print">
           <button class="btn secondary" id="refreshBtn">↻ 重新整理</button>
-          <div></div>
+          <button class="btn red" id="downloadPdfBtn">⬇ 下載 PDF</button>
         </div>
       `;
       $('#refreshBtn').addEventListener('click', load);
+      $('#downloadPdfBtn').addEventListener('click', ()=>{
+        const originalTitle = document.title;
+        document.title = (quiz.articleTitle || '閱讀測驗') + '-作答結果';
+        window.print();
+        setTimeout(()=>{ document.title = originalTitle; }, 500);
+      });
     }
     load();
   }
