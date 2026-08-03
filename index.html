@@ -433,6 +433,17 @@
           <input type="text" id="customAudience" placeholder="例如：新住民華語班、國三會考複習">
         </div>
       </div>
+
+      <label class="field-label" style="margin-top:16px;">出題語言</label>
+      <p class="hint" style="margin-bottom:8px;">題目、選項、解析會用這個語言出，適合拍英文文章時使用</p>
+      <div class="row">
+        <div>
+          <select id="quizLanguageSelect">
+            <option value="繁體中文" selected>繁體中文</option>
+            <option value="English">English</option>
+          </select>
+        </div>
+      </div>
     </div>
 
     <!-- STEP 2 -->
@@ -842,6 +853,7 @@
 
   const state = {
     audience:'國小中年級（3–4年級）',
+    quizLanguage:'繁體中文',
     counts: Object.assign({}, DEFAULT_COUNTS),
     outputFormat:'web',
     images: [], // {dataUrl, mediaType, base64}
@@ -947,6 +959,8 @@
     }
   });
   $('#customAudience').addEventListener('input', (e)=>{ state.audience = e.target.value || '自訂對象'; });
+
+  $('#quizLanguageSelect').addEventListener('change', (e)=>{ state.quizLanguage = e.target.value; });
 
   $('#fmtGrid').addEventListener('click', (e)=>{
     const card = e.target.closest('.fmt-card');
@@ -1070,7 +1084,7 @@
           response = await fetch(API_BASE + '/api/generate', {
             method:"POST",
             headers:{ "Content-Type":"application/json" },
-            body: JSON.stringify({ images, mode:'full', audience: state.audience, counts: state.counts })
+            body: JSON.stringify({ images, mode:'full', audience: state.audience, counts: state.counts, language: state.quizLanguage })
           });
           try{
             resultJson = await response.json();
@@ -1365,6 +1379,7 @@
           images: [],
           mode: 'reroll',
           audience: state.audience,
+          language: state.quizLanguage,
           category,
           articleTitle: state.quiz.articleTitle || '',
           articleSummary: state.quiz.articleSummary || '',
