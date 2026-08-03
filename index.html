@@ -150,6 +150,11 @@
   /* format radio cards */
   .fmt-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-top:6px;}
   .fields-check-row{display:flex; gap:10px; flex-wrap:wrap;}
+  .seat-range-row{margin-top:4px;}
+  .seat-range-row.hidden{display:none;}
+  .seat-range-inputs{display:flex; align-items:center; gap:6px; font-family:var(--mono); font-size:13px; color:var(--ink-soft);}
+  .seat-range-inputs input{width:64px; padding:8px 10px; border:1.5px solid var(--line); background:#fff; font-family:var(--mono); font-size:13px; text-align:center;}
+  .seat-range-inputs input:focus{outline:none; border-color:var(--ink);}
   .check-pill{
     display:inline-flex; align-items:center; gap:6px; border:1.5px solid var(--line); background:var(--paper);
     padding:8px 14px; font-size:14px; cursor:pointer; user-select:none;
@@ -463,6 +468,12 @@
         <label class="check-pill"><input type="checkbox" id="fieldSeat" checked> 座號</label>
         <label class="check-pill"><input type="checkbox" id="fieldName" checked> 姓名</label>
       </div>
+      <div class="seat-range-row" id="seatRangeRow">
+        <label class="field-label" style="margin-top:10px;">座號範圍（學生作答時會變成下拉選單）</label>
+        <div class="seat-range-inputs">
+          <input type="number" id="seatRangeMin" min="1" max="99" value="1"> 號　～　<input type="number" id="seatRangeMax" min="1" max="99" value="30"> 號
+        </div>
+      </div>
     </div>
 
     <!-- STEP 4 -->
@@ -652,9 +663,22 @@
 
     function render(){
       if(!st.submitted){
+        let seatFieldHtml = '';
+        if(fields.seat){
+          const range = fields.seatRange;
+          if(range && Number.isInteger(range.min) && Number.isInteger(range.max) && range.max >= range.min){
+            let opts = `<option value="" ${st.seat ? '' : 'selected'}>請選擇座號</option>`;
+            for(let n = range.min; n <= range.max; n++){
+              opts += `<option value="${n}" ${String(n) === String(st.seat) ? 'selected' : ''}>${n} 號</option>`;
+            }
+            seatFieldHtml = `<div><label class="field-label">座號</label><select id="stSeat">${opts}</select></div>`;
+          } else {
+            seatFieldHtml = `<div><label class="field-label">座號</label><input type="text" id="stSeat" placeholder="例如：12" value="${escapeHtml(st.seat)}"></div>`;
+          }
+        }
         const infoFieldsHtml = [
           fields.className ? `<div><label class="field-label">班級</label><input type="text" id="stClass" placeholder="例如：三年二班" value="${escapeHtml(st.className)}"></div>` : '',
-          fields.seat ? `<div><label class="field-label">座號</label><input type="text" id="stSeat" placeholder="例如：12" value="${escapeHtml(st.seat)}"></div>` : '',
+          seatFieldHtml,
           fields.name ? `<div><label class="field-label">姓名</label><input type="text" id="stName" placeholder="請輸入姓名" value="${escapeHtml(st.name)}"></div>` : ''
         ].filter(Boolean).join('');
         root.innerHTML = `
@@ -670,7 +694,11 @@
           </div>
         `;
         if(fields.className) $('#stClass').addEventListener('input', e => st.className = e.target.value);
-        if(fields.seat) $('#stSeat').addEventListener('input', e => st.seat = e.target.value);
+        if(fields.seat){
+          const seatEl = $('#stSeat');
+          seatEl.addEventListener('input', e => st.seat = e.target.value);
+          seatEl.addEventListener('change', e => st.seat = e.target.value);
+        }
         if(fields.name) $('#stName').addEventListener('input', e => st.name = e.target.value);
         $all('.opt').forEach(opt=>{
           opt.addEventListener('click', ()=>{
@@ -815,6 +843,7 @@
     rerollsLimit: 5,
     rerollingId: null, // 目前正在換題中的題目 id（避免重複點擊）
     studentFields: { className:true, seat:true, name:true },
+    seatRange: { min:1, max:30 },
     docVersion: 'teacher' // 'teacher' | 'student' — Word/PDF 預覽目前顯示哪個版本
   };
 
@@ -826,8 +855,31 @@
   }
 
   $('#fieldClass').addEventListener('change', e => state.studentFields.className = e.target.checked);
-  $('#fieldSeat').addEventListener('change', e => state.studentFields.seat = e.target.checked);
+  $('#fieldSeat').addEventListener('change', e => {
+    state.studentFields.seat = e.target.checked;
+    updateSeatRangeVisibility();
+  });
   $('#fieldName').addEventListener('change', e => state.studentFields.name = e.target.checked);
+
+  function updateSeatRangeVisibility(){
+    const row = $('#seatRangeRow');
+    if(!row) return;
+    row.classList.toggle('hidden', !state.studentFields.seat);
+  }
+  updateSeatRangeVisibility();
+
+  $('#seatRangeMin').addEventListener('input', e => {
+    let v = parseInt(e.target.value, 10);
+    if(isNaN(v) || v < 1) v = 1;
+    if(v > 99) v = 99;
+    state.seatRange.min = v;
+  });
+  $('#seatRangeMax').addEventListener('input', e => {
+    let v = parseInt(e.target.value, 10);
+    if(isNaN(v) || v < 1) v = 1;
+    if(v > 99) v = 99;
+    state.seatRange.max = v;
+  });
 
   // ---------- setup: audience ----------
   function buildCatGrid(){
@@ -1261,7 +1313,7 @@
       const res = await fetch(API_BASE + '/api/quiz', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ quiz: state.quiz, audience: state.audience, fields: state.studentFields })
+        body: JSON.stringify({ quiz: state.quiz, audience: state.audience, fields: Object.assign({}, state.studentFields, { seatRange: state.seatRange }) })
       });
       const j = await res.json();
       if(!res.ok || !j.ok || !j.id) throw new Error(j.error || '儲存測驗失敗，請確認後端網址與 KV 設定是否正確。');
