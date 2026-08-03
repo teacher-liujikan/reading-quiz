@@ -793,6 +793,7 @@
           <div class="num">${responses.length}</div>
           <div class="lab">已作答人數${responses.length ? '　｜　平均 ' + avg.toFixed(1) + ' / ' + quiz.questions.length : ''}</div>
         </div>
+        <p class="hint" style="text-align:center; margin-top:-8px;">🔄 這個畫面<b>不會自動更新</b>，學生送出新的作答後，請按下方「重新整理」查看最新人數，資料同步可能需要<b>等待數秒到約 1 分鐘</b>才會顯示。</p>
         <div class="card" data-tag="學生作答狀況">
           <h2 class="section-title">作答名單</h2>
           ${responses.length === 0 ? '<p class="hint">目前還沒有人送出作答，等學生開始作答後按下方「重新整理」即可看到。</p>' : `
